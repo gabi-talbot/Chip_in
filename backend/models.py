@@ -2,7 +2,7 @@
 from backend import db
 
 class Group(db.Model):
-    __tablename__ = 'groups'
+    __tablename__ = 'group'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String(), nullable=False)
@@ -19,9 +19,10 @@ class Group(db.Model):
         return f'<Group {self.name}, {self.id}>'
 
 class Category(db.Model):
-    __tablename__ = 'categories'
+    __tablename__ = 'category'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(), nullable=False)
+    name = db.Column(db.String(), unique=True, nullable=False)
+    slug = db.Column(db.String(), unique=True, nullable=False)
     image_link = db.Column(db.String(), nullable=False)
     items = db.relationship('Item', backref='category', lazy='dynamic',
                             cascade='all, delete')
@@ -31,7 +32,7 @@ class Category(db.Model):
 
 
 class Item(db.Model):
-    __tablename__ = 'items'
+    __tablename__ = 'item'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String(), nullable=True)
@@ -42,11 +43,12 @@ class Item(db.Model):
 
 
 class ItemRequested(db.Model):
-    __tablename__ = 'items_requested'
+    __tablename__ = 'item_requested'
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
-    date_requested = db.Column(db.DateTime, nullable=False)
+    date_requested = db.Column(db.DateTime, server_default=db.text("CURRENT_TIMESTAMP"),
+                               nullable=False)
 
     def __repr__(self):
         return f'<ItemRequested {self.date_requested}, {self.id}>'
