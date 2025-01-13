@@ -12,6 +12,7 @@ class DevelopmentConfig(Config):
     FLASK_ENV = 'development'
 
 
+
 class ProductionConfig(Config):
     DEBUG = False
     FLASK_DEBUG = False
