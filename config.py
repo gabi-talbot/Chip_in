@@ -20,9 +20,12 @@ class ProductionConfig(Config):
 
 
 class TestingConfig(Config):
-    pass
+    SQLALCHEMY_DATABASE_URI = os.getenv('TEST_DATABASE_URL')
+    FLASK_ENV = 'testing'
+    TESTING = True
+    DEBUG = True
 
-config = {
+config_dict = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
     'testing': TestingConfig,

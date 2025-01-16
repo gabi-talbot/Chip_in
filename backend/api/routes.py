@@ -30,15 +30,16 @@ def get_groups():
     groups = paginate(request, query)
 
     if len(groups) == 0:
-        abort(404, 'No groups found')
+        abort(404)
 
-    return jsonify(
-        {
-            'success': True,
-            'groups': groups,
-            'total_groups': len(query)
-        }
-    )
+    else:
+        return jsonify(
+            {
+                'success': True,
+                'groups': groups,
+                'total_groups': len(query)
+            }
+        )
 
 # Display details of a particular group and the items requested by that group
 @api_blueprint.route('/group/<group_id>')
@@ -131,6 +132,10 @@ def create_item():
         )
     except:
         abort(422)
+
+
+################## ERROR HANDLING  ############################
+# refactor
 
 @api_blueprint.app_errorhandler(404)
 def not_found(e):

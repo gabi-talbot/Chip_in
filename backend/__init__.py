@@ -2,22 +2,29 @@ import os
 from dotenv import load_dotenv
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from config import config
+from config import config_dict
 from flask_migrate import Migrate
+
 from flask_cors import CORS
 
 load_dotenv()
 
 db = SQLAlchemy()
-migrate = Migrate()
+# migrate = Migrate()
 
 def create_app(config_name):
+
     app = Flask(__name__)
-    app.config.from_object(config[config_name])
+
+    # app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:abc@127.0.0.1:5432/chipin"
+    app.config.from_object(config_dict[config_name])
+    # config[config_name].init_app(app)
+    # app.config.from_pyfile("../config.py")
+
 
     # initialise database
     db.init_app(app)
-    migrate.init_app(app, db)
+
 
     # For all endpoints
     CORS(app)
