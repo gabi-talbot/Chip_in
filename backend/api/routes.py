@@ -27,8 +27,8 @@ def get_groups():
     # returns all group records, ordered by county, then city
     try:
         groups_query = (Group.query.order_by(Group.county, Group.city)
-                 .paginate(per_page=ITEMS_PER_PAGE, page=request.args.get(
-            'page', 1, type=int)))
+                        .paginate(per_page=ITEMS_PER_PAGE,
+                                  page=request.args.get('page', 1, type=int)))
 
         # format items in paginate object
         groups = [group.format() for group in groups_query.items]
@@ -154,7 +154,7 @@ def update_group_by_id(id):
 ######  DELETE items - Logged in Group or Admin ######
 
 # change this to delete a requested item
-@api_blueprint.route('/group/<int: id>', methods=['DELETE'])
+@api_blueprint.route('/group/<int:id>', methods=['DELETE'])
 def delete_requested_item_by_id(id):
     """
 

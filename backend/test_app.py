@@ -39,15 +39,16 @@ class GroupTestCase(unittest.TestCase):
 # I think the test is fine but not accessing the db, so len of groups == 0???
     # create a separate test_config file?
     def test_get_paginated_groups(self):
-        response = self.client().get("/group")
+        response = self.client().get("api/group")
         data = json.loads(response.data)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(data["success"], True)
-        self.assertTrue(data["total_books"])
+        self.assertTrue(data["total_groups"])
 
     def test_404_requesting_beyond_valid_page(self):
-        response = self.client().get("/group?page=1000", json={"name": "hi"})
+        response = self.client().get("api/group?page=1000", json={"name":
+                                                                      "hi"})
         data = json.loads(response.data)
 
         self.assertEqual(response.status_code, 404)
