@@ -1,3 +1,5 @@
+from crypt import methods
+
 from flask import jsonify, request, abort
 from flask_sqlalchemy import query
 
@@ -5,137 +7,268 @@ from . import api_blueprint
 from backend.models import Group, ItemRequested, Item
 from .. import db
 
+# Constant for pagination
+ITEMS_PER_PAGE = 5
 
-ITEMS_PER_PAGE = 10
 
-def paginate(request, selection):
-    page = request.args.get('page', 1, type=int)
-    start = (page - 1) * ITEMS_PER_PAGE
-    end = start + ITEMS_PER_PAGE
+###### READ / GET Group and Item details - ANY USER (No login needed) ######
 
-    items = [item.format() for item in selection]
-    current_items = items[start:end]
 
-    return current_items
-
-################### GET #####################################
-
-# Display all groups, order by county, then city
 @api_blueprint.route('/group')
 def get_groups():
-    # returns a list of groups in db
-    query = Group.query.order_by(Group.county, Group.city).all()
+    """
+    Retrieves all groups from the database, ordered by county,
+    then city. Results are paginated in groups of 5. If a request argument
+    for page number is not included page will start at 1.
 
+    Returns:
+        List of groups or 404 if not found.
+    """
+    # returns all group records, ordered by county, then city
+    try:
+        groups_query = (Group.query.order_by(Group.county, Group.city)
+                 .paginate(per_page=ITEMS_PER_PAGE, page=request.args.get(
+            'page', 1, type=int)))
 
-    groups = paginate(request, query)
+        # format items in paginate object
+        groups = [group.format() for group in groups_query.items]
 
-    if len(groups) == 0:
-        abort(404)
-
-    else:
         return jsonify(
             {
                 'success': True,
                 'groups': groups,
-                'total_groups': len(query)
+                'total_groups': groups_query.total,
             }
         )
+    except Exception as e:
+        print(e)
+        abort(404)
 
 # Display details of a particular group and the items requested by that group
-@api_blueprint.route('/group/<group_id>')
-def get_group_by_id(group_id):
-    group = Group.query.get_or_404(group_id)
-    formatted_group = group.format()
+@api_blueprint.route('/group/<int:id>')
+def get_group_by_id(id):
+    """
+    Retrieves a group from the database using the query parameter 'id'.
 
-    return jsonify(
-        {
-            'success': True,
-            'group': formatted_group,
-        }
-    )
+    Returns:
+        Group object or 404 if not found.
+    """
 
-###################### LOGGED IN GROUP - update Items Needed #############################
+    group = Group.query.get_or_404(id)
 
-# Patch Group by adding a new item to group's items_requested field
-@api_blueprint.route('/group/<group_id>', methods=['PATCH'])
-def update_group_by_id(group_id):
-    group = Group.query.get_or_404(group_id)
-
-    # body should contain details to create a new item
-    body = request.get_json()
-
-    # Add a method in here that first creates a new item and posts it
-    # Get the item_id from the newly created item
     try:
-        if 'item_id' in body:
-            item_requested = ItemRequested(item_id = body.get('item_id'), group_id = group_id)
-
-            db.session.add(item_requested)
-            db.session.commit()
+        formatted_group = group.format()
 
         return jsonify(
             {
-                'id': group.id,
+                'success': True,
+                'group': formatted_group,
+            }
+        )
+    except Exception as e:
+        print(e)
+        abort(404)
+
+# search for a group by search term
+@api_blueprint.route('/group/search', methods=['GET', 'POST'])
+def search_by_area():
+    """
+    Takes a search_term for an item name in the request body and
+    returns groups with matching items requested, ordered by county then city.
+
+    Returns:
+        Returns a list of groups or 404 if no groups found
+    """
+    try:
+        body = request.get_json()
+        search_term = body.get('search_term')
+
+
+        # plan to change this to search for items requested based on a postcode
+        # supplied by the json body - show results ordered by distance
+        search_query = (Group.query.filter_by(Group.items_requested.item.name
+                        .ilike('%' + search_term + '%'))
+                        .order_by(Group.county, Group.city)
+                        .all())
+
+        if len(search_query) == 0:
+            abort(404)
+
+        formatted_groups = [group.format() for group in search_query]
+
+        return jsonify(
+            {
+                'success': True,
+                'groups': formatted_groups,
+            }
+        )
+    except Exception as e:
+        print(e)
+        abort(422)
+
+
+
+
+#######  UPDATE/PATCH Group contact details - Logged in Group or Admin ######
+
+# Patch group's email (maybe add tel number if time)
+@api_blueprint.route('/group/<int:id>', methods=['PATCH'])
+def update_group_by_id(id):
+    """
+    Updates a group's email by query parameter 'id'. Requires the
+    email details to be supplied in the request body.
+
+    Returns:
+         Id of updated group, 404 if group not found, 422 if request field is
+        not valid.
+    """
+
+    try:
+        # body should contain details to change email
+        body = request.get_json()
+
+        update_group = Group.query.get_or_404(id)
+
+        try:
+            update_group.email = body.get('email')
+
+            # add further email validation here
+            if update_group.email == "":
+                raise ValueError('Empty email')
+        except ValueError as e:
+            print(e)
+            abort(422)
+
+        db.session.commit()
+
+        return jsonify(
+            {
+                'id': update_group.id,
                 'success': True
             }
         )
-    except:
+    # Also add server error here? - 500
+    except Exception as e:
         abort(400)
 
+######  DELETE items - Logged in Group or Admin ######
 
 # change this to delete a requested item
-@api_blueprint.route('/group/<group_id>/<item_id>', methods=['DELETE'])
-def delete_requested_item_by_id(group_id, item_id):
+@api_blueprint.route('/group/<int: id>', methods=['DELETE'])
+def delete_requested_item_by_id(id):
+    """
+
+    :param id:
+    :return:
+    """
+    try:
+        try:
+            body = request.get_json()
+            item_id = body.get('item_id')
+            if item_id == "":
+                raise ValueError('Empty item_id')
+        except ValueError as value_error:
+            print(value_error)
+
+        # need both id's to retrieve the correct item_requested record
+        item_requested = ItemRequested.query.get_or_404(group_id = id,
+                                                        item_id = item_id)
+
+        db.session.delete(item_requested)
+        db.session.commit()
+        db.session.close()
 
 
-    # retrieve item requested
-    item_requested = ItemRequested(item_id = item_id, group_id = group_id)
+        return jsonify(
+            {
+                'success': True,
+                'deleted_item': item_id
+            }
+        )
+    except Exception as e:
+        print(e)
+        abort(500)
 
+######  CREATE Group - for logged in ADMIN Role only ######
+# Group will pass a request via form/email/contact us
+# - admin will perform checks and create account details for Group
 
-    db.session.delete(item_requested)
-    db.session.commit()
-    db.session.close()
-
-
-
-    return jsonify(
-        {
-            'success': True,
-            'deleted_item': item_id
-        }
-    )
-
-
-######################  Create Group - for ADMIN Role  ###################
-
+######### May change this to just create item for logged in group and have the
+# other ROLE as just user
 @api_blueprint.route('/group', methods=['POST'])
 def create_item():
     body = request.get_json()
     try:
-        new_group = Group(name=body.get('name'), description=body.get('description'),
-                          address=body.get('address'), city=body.get('city'),
-                          county=body.get('county'), email=body.get('email'))
+        try:
+            new_group = Group(name=body.get('name'),
+                              description=body.get('description'),
+                              address=body.get('address'),
+                              city=body.get('city'),
+                              county=body.get('county'),
+                              email=body.get('email'))
+
+            # add more validation empty string here, as needed
+            # email validation?
+            if new_group.address == "":
+                raise ValueError("Empty String")
+
+        except ValueError as e:
+            print(e)
+            abort(422)
 
         db.session.add(new_group)
         db.session.commit()
 
-        selection = Group.query.all()
-        current_groups = paginate(request, selection)
+        query = Group.query.paginate(per_page=ITEMS_PER_PAGE,
+                                         page=request.args.get(
+                                            'page', 1, type=int))
+
+        groups =[group.format for group in query.items]
 
         return jsonify(
             {
                 'success': True,
                 'created': new_group.id,
-                'groups': current_groups,
-                'total_groups': len(current_groups)
+                'groups': groups,
+                'total_groups': query.total,
+            }
+        ), 201
+    # repetition?
+    except ValueError as value_error:
+        print(value_error)
+        abort(422)
+        # Server error?
+    except Exception as e:
+        print(e)
+        abort(500)
+
+###### CREATE item_requested - add item to group's requested items - logged in
+# group only ######
+@api_blueprint.route('/group/<int:id>', methods=['POST'])
+def update_items(id):
+    try:
+        body = request.get_json()
+
+        item_id = body.get('item_id')
+
+        item_requested = ItemRequested(group_id=id, item_id=item_id)
+        db.session.add(item_requested)
+        db.session.commit()
+        db.session.close()
+
+        return jsonify(
+            {
+                'success': True,
+                'group_id': id,
             }
         )
-    except:
-        abort(422)
+    except Exception as e:
+        print(e)
+        abort(404)
 
 
 ################## ERROR HANDLING  ############################
-# refactor
+# refactor - see WERKZEUG DOCS
 
 @api_blueprint.app_errorhandler(404)
 def not_found(e):

@@ -77,6 +77,7 @@ class Item(db.Model):
         return f'<Item {self.name}, {self.id}>'
 
 # joining table for many-to-many relationship between group and item
+# requested
 class ItemRequested(db.Model):
     __tablename__ = 'item_requested'
     id = db.Column(db.Integer, primary_key=True)

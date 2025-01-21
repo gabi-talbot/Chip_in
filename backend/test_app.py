@@ -8,7 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 from backend import create_app, db
 from backend.models import Group
-from config import config_dict, Config, TestingConfig
+from config import config_dict, Config, TestingConfig, DevelopmentConfig
 
 
 class GroupTestCase(unittest.TestCase):
@@ -17,15 +17,14 @@ class GroupTestCase(unittest.TestCase):
 
     def setUp(self):
         """Initialise the app and create test variables"""
-        config = 'testing'
-        self.app = create_app(config)
 
-        self.appctx=self.app.app_context()
-        self.appctx.push()
+        self.app = create_app(DevelopmentConfig)
 
         self.client = self.app.test_client
 
-        db.create_all()
+        with self.app.app_context():
+
+            db.create_all()
 
         self.new_group = Group(name="Test Group", description="Test description",
                                address="Test address", city="Test city",
