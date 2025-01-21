@@ -19,10 +19,10 @@ def get_groups():
     """
     Retrieves all groups from the database, ordered by county,
     then city. Results are paginated in groups of 5. If a request argument
-    for page number is not included page will start at 1.
+    for page number is not included, page will start at 1.
 
     Returns:
-        List of groups or 404 if not found.
+        200, list of groups and total groups or 404 if no groups found.
     """
     # returns all group records, ordered by county, then city
     try:
@@ -48,10 +48,10 @@ def get_groups():
 @api_blueprint.route('/group/<int:id>')
 def get_group_by_id(id):
     """
-    Retrieves a group from the database using the query parameter 'id'.
+    Retrieves the specified group.
 
     Returns:
-        Group object or 404 if not found.
+        200 and group or 404 if not found.
     """
 
     group = Group.query.get_or_404(id)
@@ -71,13 +71,13 @@ def get_group_by_id(id):
 
 # search for a group by search term
 @api_blueprint.route('/group/search', methods=['GET', 'POST'])
-def search_by_area():
+def search_by_item():
     """
     Takes a search_term for an item name in the request body and
     returns groups with matching items requested, ordered by county then city.
 
     Returns:
-        Returns a list of groups or 404 if no groups found
+        200 and list of groups or 404 if no groups found
     """
     try:
         body = request.get_json()
@@ -91,8 +91,6 @@ def search_by_area():
                         .order_by(Group.county, Group.city)
                         .all())
 
-        if len(search_query) == 0:
-            abort(404)
 
         formatted_groups = [group.format() for group in search_query]
 
@@ -104,7 +102,7 @@ def search_by_area():
         )
     except Exception as e:
         print(e)
-        abort(422)
+        abort(404)
 
 
 
@@ -115,12 +113,12 @@ def search_by_area():
 @api_blueprint.route('/group/<int:id>', methods=['PATCH'])
 def update_group_by_id(id):
     """
-    Updates a group's email by query parameter 'id'. Requires the
+    Updates the email address of the specified group. Requires the
     email details to be supplied in the request body.
 
     Returns:
-         Id of updated group, 404 if group not found, 422 if request field is
-        not valid.
+         200 and id of updated group, 404 if group not found, 422 if request
+         field is not valid.
     """
 
     try:
@@ -149,7 +147,7 @@ def update_group_by_id(id):
         )
     # Also add server error here? - 500
     except Exception as e:
-        abort(400)
+        abort(500)
 
 ######  DELETE items - Logged in Group or Admin ######
 
@@ -157,9 +155,12 @@ def update_group_by_id(id):
 @api_blueprint.route('/group/<int:id>', methods=['DELETE'])
 def delete_requested_item_by_id(id):
     """
+    Deletes the specified group's requested item. Requires an item_id in the
+    request body.
 
-    :param id:
-    :return:
+    Returns:
+        200 and deleted item_id, 422 if request body is invalid or 404 if item
+        not found.
     """
     try:
         try:
@@ -169,6 +170,7 @@ def delete_requested_item_by_id(id):
                 raise ValueError('Empty item_id')
         except ValueError as value_error:
             print(value_error)
+            abort(422)
 
         # need both id's to retrieve the correct item_requested record
         item_requested = ItemRequested.query.get_or_404(group_id = id,
@@ -246,10 +248,17 @@ def create_item():
 # group only ######
 @api_blueprint.route('/group/<int:id>', methods=['POST'])
 def update_items(id):
+    """
+    Adds an item to the specified group. Requires an item_id in the request
+    body.
+
+    Returns:
+        201 and item_id or 404 if item not found.
+    """
     try:
         body = request.get_json()
 
-        item_id = body.get('item_id')
+        item_id = body.get_or_404('item_id')
 
         item_requested = ItemRequested(group_id=id, item_id=item_id)
         db.session.add(item_requested)
@@ -261,10 +270,10 @@ def update_items(id):
                 'success': True,
                 'group_id': id,
             }
-        )
+        ), 201
     except Exception as e:
         print(e)
-        abort(404)
+        abort(500)
 
 
 ################## ERROR HANDLING  ############################
