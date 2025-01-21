@@ -1,5 +1,7 @@
 from backend import create_app, db
 from flask_migrate import Migrate
 
-app = create_app('development')
+from config import DevelopmentConfig
+
+app = create_app(DevelopmentConfig)
 migrate = Migrate(app, db)

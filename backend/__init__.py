@@ -12,12 +12,12 @@ load_dotenv()
 db = SQLAlchemy()
 # migrate = Migrate()
 
-def create_app(config_name):
+def create_app(config):
 
     app = Flask(__name__)
 
     # app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:abc@127.0.0.1:5432/chipin"
-    app.config.from_object(config_dict[config_name])
+    app.config.from_object(config)
     # config[config_name].init_app(app)
     # app.config.from_pyfile("../config.py")
 
