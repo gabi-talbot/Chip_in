@@ -138,7 +138,7 @@ def update_group_by_id(jwt, id):
             raise UnprocessableEntity(e.args[0])
 
         # commit changes
-        db.session.commit()
+        update_group.update()
 
         return jsonify(
             {
@@ -182,9 +182,8 @@ def delete_requested_item_by_id(jwt, id):
         item_requested = ItemRequested.query.get(group_id = id, item_id =
         item_id)
 
-        # create a function in the model for this?
-        db.session.delete(item_requested)
-        db.session.commit()
+        # delete item and commit
+        item_requested.delete()
 
         return jsonify(
             {
@@ -232,9 +231,8 @@ def create_item(jwt):
             raise UnprocessableEntity("Cannot create group with the request "
                                       "data")
 
-        # create a function in the model for this?
-        db.session.add(new_group)
-        db.session.commit()
+        # add group and commit
+        new_group.add()
 
         query = Group.query.paginate(per_page=ITEMS_PER_PAGE,
                                          page=request.args.get(
@@ -276,9 +274,9 @@ def update_items(jwt, id):
         item_id = body.get_or_404('item_id')
 
         item_requested = ItemRequested(group_id=id, item_id=item_id)
-        db.session.add(item_requested)
-        db.session.commit()
-        db.session.close()
+
+        # add item and commit
+        item_requested.add()
 
         return jsonify(
             {
@@ -286,13 +284,14 @@ def update_items(jwt, id):
                 'group_id': id,
             }
         ), 201
+
     except Exception as e:
         print(e)
         raise BadRequest("Request is not valid")
 
 
 ################## ERROR HANDLING  ############################
-# refactor - see WERKZEUG DOCS
+
 
 @api_blueprint.app_errorhandler(NotFound)
 def not_found(e):

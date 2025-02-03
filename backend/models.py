@@ -12,6 +12,12 @@ class Group(db.Model):
     image_link = db.Column(db.String(), nullable=True)
     items_requested = db.relationship('ItemRequested', backref='group', lazy='joined',
                                       cascade='all, delete')
+    def add(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def update(self):
+        db.session.commit()
 
     def format(self):
 
@@ -83,6 +89,14 @@ class ItemRequested(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     date_requested = db.Column(db.DateTime, server_default=db.text("CURRENT_TIMESTAMP"))
+
+    def add(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
 
     def format(self):
         return {
