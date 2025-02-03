@@ -1,11 +1,10 @@
-from crypt import methods
-
-from flask import jsonify, request, abort
-from flask_sqlalchemy import query
-
+from flask import jsonify, request
 from . import api_blueprint
 from backend.models import Group, ItemRequested, Item
+from .auth import requires_auth, AuthError
 from .. import db
+from werkzeug.exceptions import abort, NotFound, MethodNotAllowed, BadRequest, \
+    UnprocessableEntity
 
 # Constant for pagination
 ITEMS_PER_PAGE = 5
@@ -13,16 +12,15 @@ ITEMS_PER_PAGE = 5
 
 ###### READ / GET Group and Item details - ANY USER (No login needed) ######
 
-
-@api_blueprint.route('/group')
+@api_blueprint.route('/groups')
 def get_groups():
     """
     Retrieves all groups from the database, ordered by county,
     then city. Results are paginated in groups of 5. If a request argument
     for page number is not included, page will start at 1.
 
-    Returns:
-        200, list of groups and total groups or 404 if no groups found.
+    :returns 200, list of groups and total number of groups if successful.
+    404 if no groups found.
     """
     # returns all group records, ordered by county, then city
     try:
@@ -42,21 +40,20 @@ def get_groups():
         )
     except Exception as e:
         print(e)
-        abort(404)
+        raise NotFound('Groups not found')
 
 # Display details of a particular group and the items requested by that group
-@api_blueprint.route('/group/<int:id>')
+@api_blueprint.route('/groups/<int:id>')
 def get_group_by_id(id):
     """
-    Retrieves the specified group.
+    Retrieves the specified group and items requested by that group.
 
-    Returns:
-        200 and group or 404 if not found.
+    :param id: Group id
+
+    :returns 200 and group; 404 if not found.
     """
-
-    group = Group.query.get_or_404(id)
-
     try:
+        group = Group.query.get(id)
         formatted_group = group.format()
 
         return jsonify(
@@ -65,32 +62,30 @@ def get_group_by_id(id):
                 'group': formatted_group,
             }
         )
+
     except Exception as e:
         print(e)
-        abort(404)
+        raise NotFound('Group not found')
 
-# search for a group by search term
+
 @api_blueprint.route('/group/search', methods=['GET', 'POST'])
 def search_by_item():
     """
     Takes a search_term for an item name in the request body and
     returns groups with matching items requested, ordered by county then city.
 
-    Returns:
+    :returns
         200 and list of groups or 404 if no groups found
     """
     try:
         body = request.get_json()
         search_term = body.get('search_term')
 
-
-        # plan to change this to search for items requested based on a postcode
-        # supplied by the json body - show results ordered by distance
-        search_query = (Group.query.filter_by(Group.items_requested.item.name
-                        .ilike('%' + search_term + '%'))
-                        .order_by(Group.county, Group.city)
-                        .all())
-
+        # Hoping to add additional functionality - to narrow results by
+        # postcode entered and show results ordered by distance
+        search_query = (Group.query.filter(Item.name
+                                           .ilike('%' + search_term + '%'))
+                        .order_by(Group.county, Group.city)).all()
 
         formatted_groups = [group.format() for group in search_query]
 
@@ -102,41 +97,47 @@ def search_by_item():
         )
     except Exception as e:
         print(e)
-        abort(404)
+        raise NotFound('No groups found matching the search term')
 
 
 
 
-#######  UPDATE/PATCH Group contact details - Logged in Group or Admin ######
+#######  UPDATE/PATCH Group contact details - Logged in Admin ######
 
-# Patch group's email (maybe add tel number if time)
-@api_blueprint.route('/group/<int:id>', methods=['PATCH'])
-def update_group_by_id(id):
+# Update a group's email.
+@api_blueprint.route('/groups/<int:id>', methods=['PATCH'])
+@requires_auth('patch:group_email')
+def update_group_by_id(jwt, id):
     """
     Updates the email address of the specified group. Requires the
     email details to be supplied in the request body.
 
-    Returns:
-         200 and id of updated group, 404 if group not found, 422 if request
-         field is not valid.
+    :param jwt: JWT token must have patch:group_email permission
+    :param id: Group Id
+
+    :returns 200 and id of updated group, 404 if group not found, 422 if request
+         is not valid.
     """
 
     try:
         # body should contain details to change email
         body = request.get_json()
 
-        update_group = Group.query.get_or_404(id)
+        update_group = Group.query.get(id)
 
         try:
+            # add further email validation here
+            if body.get('email') == "":
+                raise ValueError('Empty email')
+
+            # update the email address
             update_group.email = body.get('email')
 
-            # add further email validation here
-            if update_group.email == "":
-                raise ValueError('Empty email')
         except ValueError as e:
             print(e)
-            abort(422)
+            raise UnprocessableEntity(e.args[0])
 
+        # commit changes
         db.session.commit()
 
         return jsonify(
@@ -145,22 +146,26 @@ def update_group_by_id(id):
                 'success': True
             }
         )
-    # Also add server error here? - 500
+
     except Exception as e:
-        abort(500)
+        print(e)
+        raise NotFound('Group not found')
 
 ######  DELETE items - Logged in Group or Admin ######
 
 # change this to delete a requested item
 @api_blueprint.route('/group/<int:id>', methods=['DELETE'])
-def delete_requested_item_by_id(id):
+@requires_auth('delete:group_items')
+def delete_requested_item_by_id(jwt, id):
     """
-    Deletes the specified group's requested item. Requires an item_id in the
+    Deletes the specified group's requested item. Requires the item's id in the
     request body.
 
-    Returns:
-        200 and deleted item_id, 422 if request body is invalid or 404 if item
-        not found.
+    :param jwt: Jwt must have delete:group_items permission.
+    :param id: Group Id
+
+    :returns: 200 OK and deleted item_id if successful, 422 if request body is
+    invalid or 404 if item id not found.
     """
     try:
         try:
@@ -168,18 +173,18 @@ def delete_requested_item_by_id(id):
             item_id = body.get('item_id')
             if item_id == "":
                 raise ValueError('Empty item_id')
+
         except ValueError as value_error:
             print(value_error)
-            abort(422)
+            raise BadRequest("item_id is required")
 
         # need both id's to retrieve the correct item_requested record
-        item_requested = ItemRequested.query.get_or_404(group_id = id,
-                                                        item_id = item_id)
+        item_requested = ItemRequested.query.get(group_id = id, item_id =
+        item_id)
 
+        # create a function in the model for this?
         db.session.delete(item_requested)
         db.session.commit()
-        db.session.close()
-
 
         return jsonify(
             {
@@ -187,20 +192,28 @@ def delete_requested_item_by_id(id):
                 'deleted_item': item_id
             }
         )
+
     except Exception as e:
         print(e)
-        abort(500)
+        raise NotFound('Item not found')
 
 ######  CREATE Group - for logged in ADMIN Role only ######
 # Group will pass a request via form/email/contact us
 # - admin will perform checks and create account details for Group
 
-######### May change this to just create item for logged in group and have the
-# other ROLE as just user
 @api_blueprint.route('/group', methods=['POST'])
-def create_item():
-    body = request.get_json()
+@requires_auth('post:group')
+def create_item(jwt):
+    """
+    Create a new group. Requires Group data in the request body.
+
+    :param jwt: Must have post:group permissions.
+
+    :return: 201 if created, 422 if request body cannot be processed,
+    400 if request is in any other way invalid.
+    """
     try:
+        body = request.get_json()
         try:
             new_group = Group(name=body.get('name'),
                               description=body.get('description'),
@@ -209,15 +222,17 @@ def create_item():
                               county=body.get('county'),
                               email=body.get('email'))
 
-            # add more validation empty string here, as needed
+            # add more validation for empty strings
             # email validation?
             if new_group.address == "":
                 raise ValueError("Empty String")
 
         except ValueError as e:
             print(e)
-            abort(422)
+            raise UnprocessableEntity("Cannot create group with the request "
+                                      "data")
 
+        # create a function in the model for this?
         db.session.add(new_group)
         db.session.commit()
 
@@ -235,25 +250,25 @@ def create_item():
                 'total_groups': query.total,
             }
         ), 201
-    # repetition?
-    except ValueError as value_error:
-        print(value_error)
-        abort(422)
-        # Server error?
+
     except Exception as e:
         print(e)
-        abort(500)
+        raise BadRequest("Request is not valid")
 
 ###### CREATE item_requested - add item to group's requested items - logged in
 # group only ######
 @api_blueprint.route('/group/<int:id>', methods=['POST'])
-def update_items(id):
+@requires_auth('post:group_items')  # must have group owner role
+def update_items(jwt, id):
     """
     Adds an item to the specified group. Requires an item_id in the request
     body.
 
-    Returns:
-        201 and item_id or 404 if item not found.
+    :param jwt: Jwt must have post:group_items permission.
+    :param id: Group Id
+
+    :returns:
+        201 and item_id, 404 if item not found, 400 if bad request
     """
     try:
         body = request.get_json()
@@ -273,38 +288,64 @@ def update_items(id):
         ), 201
     except Exception as e:
         print(e)
-        abort(500)
+        raise BadRequest("Request is not valid")
 
 
 ################## ERROR HANDLING  ############################
 # refactor - see WERKZEUG DOCS
 
-@api_blueprint.app_errorhandler(404)
+@api_blueprint.app_errorhandler(NotFound)
 def not_found(e):
-    return jsonify(
+    """
+    Receives the not found error and propagates the response
+    """
+    return jsonify (
         {
-            "success": False,
-            "error": 404,
-            "message": "Not Found",
-        }
-    ), 404
+            'success': False,
+            "error": NotFound.code,
+            "message": e.description,
+        }), 404
 
-@api_blueprint.app_errorhandler(400)
+
+@api_blueprint.errorhandler(BadRequest)
 def bad_request(e):
-    return jsonify(
-        {
-            "success": False,
-            "error": 400,
-            "message": "Bad Request",
-        }
-    ), 400
+    """
+    Receives the bad request error and propagates the response
+    """
+    return jsonify({
+        "success": False,
+        "error": BadRequest.code,
+        "message": e.description
+    }), 400
 
-@api_blueprint.app_errorhandler(422)
-def unprocessable_entity(e):
+@api_blueprint.errorhandler(UnprocessableEntity)
+def unprocessable(e):
+    """
+    Receives the unprocessable error and propagates the response
+    """
+    return jsonify({
+        "success": False,
+        "error": UnprocessableEntity.code,
+        "message": e.description
+    }), 422
+
+@api_blueprint.app_errorhandler(MethodNotAllowed)
+def method_not_allowed(e):
+    """
+    Receives the raised Method Not Allowed error and propagates the response
+    """
     return jsonify(
         {
             "success": False,
-            "error": 422,
-            "message": "Unprocessable entity",
-        }
-    ), 422
+            "error": MethodNotAllowed.code,
+            "message": e.description,
+        })
+
+@api_blueprint.errorhandler(AuthError)
+def handle_auth_error(e):
+    """
+    Receives the raised authorization error and propagates the response
+    """
+    response = jsonify(e.error)
+    response.status_code = e.status_code
+    return response

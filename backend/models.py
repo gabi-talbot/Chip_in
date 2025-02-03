@@ -1,4 +1,3 @@
-
 from backend import db
 
 class Group(db.Model):
