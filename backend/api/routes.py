@@ -93,17 +93,12 @@ def update_group_by_id(jwt, id):
 
         update_group = Group.query.get(id)
 
-        try:
-            # add further email validation here?
-            if body.get('email') == "":
-                raise ValueError('Empty email')
+        # update the email address
+        update_group.email = body.get('email')
 
-            # update the email address
-            update_group.email = body.get('email')
-
-        except ValueError as e:
-            print(e)
-            raise UnprocessableEntity('Email address is required')
+        # add further validation here if time
+        if body.get('email') == "":
+            raise ValueError('Empty email')
 
         # commit changes
         update_group.update()
@@ -114,6 +109,10 @@ def update_group_by_id(jwt, id):
                 'success': True
             }
         )
+
+    except ValueError as e:
+        print(e)
+        raise UnprocessableEntity('Email address is required')
 
     except Exception as e:
         print(e)
@@ -134,8 +133,9 @@ def delete_requested_item_by_id(jwt, id, item_id):
     :param id: Group Id
     :param item_id: Item requested Id to be deleted
 
-    :returns: 200 OK and deleted item_id if successful, 422 if request body is
-    invalid or 404 if item id not found.
+    :returns: 200 OK and deleted item_id if successful;
+     404 if item id not
+    found.
     """
     try:
 

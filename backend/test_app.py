@@ -120,23 +120,61 @@ class GroupTestCase(unittest.TestCase):
 ################# GET endpoints #################################
 
     def test_get_paginated_groups(self):
-        response = self.client().get("api/groups")
+        response = self.client().get('api/groups')
         data = json.loads(response.data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(data["success"], True)
-        self.assertTrue(data["total_groups"])
+        self.assertEqual(data['success'], True)
+        self.assertTrue(data['total_groups'])
 
     def test_404_requesting_beyond_valid_page(self):
-        response = self.client().get("api/groups?page=1000", json={"name":
+        response = self.client().get('api/groups?page=1000', json={"name":
                                                                       "hi"})
         data = json.loads(response.data)
 
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(data["success"], False)
-        self.assertEqual(data["message"], 'Groups not found')
+        self.assertEqual(data['success'], False)
+        self.assertEqual(data['message'], 'Groups not found')
+
+    def test_get_group_by_id(self):
+        response = self.client().get('api/groups/1')
+        data = json.loads(response.data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(data['success'], True)
+        self.assertEqual(data['group']['name'], 'British Heart Foundation')
 
 
+    def test_get_group_by_wrong_id(self):
+        response = self.client().get('api/groups/1000')
+        data = json.loads(response.data)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(data['success'], False)
+        self.assertEqual(data['message'], 'Group not found')
+
+
+################### PATCH endpoint ##############################
+
+    def test_update_group(self):
+        response = self.client().patch('api/groups/1',
+                                       headers=self.header,
+                                       json={"email":"patch@patched.org.uk"})
+        data = json.loads(response.data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(data['success'], True)
+        self.assertEqual(data['id'], 1)
+
+    def test_update_group_with_empty_string(self):
+        response = self.client().patch('api/groups/1',
+                                       headers=self.header,
+                                       json={"email":""})
+        data = json.loads(response.data)
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(data['success'], False)
+        self.assertEqual(data['message'], 'Email address is required')
 
     def test_post_group(self):
         response = self.client().post("/api/groups", headers=self.header,
@@ -150,7 +188,7 @@ class GroupTestCase(unittest.TestCase):
 
         data = json.loads(response.data)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(data["success"], True)
+        self.assertEqual(data['success'], True)
 
 if __name__ == '__main__':
     unittest.main()
