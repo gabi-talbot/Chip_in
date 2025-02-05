@@ -46,28 +46,58 @@ def create_app(config):
     @app.cli.command('initdb')
     def initdb_command():
 
-        groups = [models.Group(name='initdb', description='Initialize the database.',
-                      address='postgres',
-                      city='test',
-                      county='test',
-                      email='<EMAIL>'),
+        groups = [models.Group(name='British Heart Foundation',
+                               description='Your donations are hugely '
+                                           'appreciated and help us fund '
+                                           'life saving research. Please '
+                                           'donate via the handy donation '
+                                           'drop point in store.',
+                               address='Guiness Trust, King\'s Road',
+                               city='London',
+                               county='Greater London',
+                               postcode='SW10 0TT',
+                               email='info@bhf.org.uk'),
+                  models.Group(name='Trussel Trust Leeds',
+                               description='Your foodbank relies on your '
+                                          'goodwill and support.',
+                               address='Unit 3, Burley Hill',
+                               city='Leeds',
+                               county='West Yorkshire',
+                               postcode='LS4 2PU',
+                               email='info@foodbank.or.uk'),
+                  models.Group(name='Leeds Community Centre',
+                               description='Our mission is to provide a hub '
+                                           'for the whole community to take '
+                                           'part in a range of positive '
+                                           'activities.',
+                               address='48 Bilton Lane',
+                               city='Leeds',
+                               county='West Yorkshire',
+                               postcode='LS1 3DD',
+                               email='info@community.org.uk')]
 
-                 models.Group(name='Trussel Trust', description='Your local food bank.',
-                              address='Trussel Trust',
-                              city='Leeds',
-                              county='North Yorkshire',
-                              email='<EMAIL>')]
+        categories = [models.Category(name='Books'),
+                      models.Category(name='Clothes'),
+                      models.Category(name='Food'),
+                      models.Category(name='Stationary')]
 
-        categories = [models.Category(name='Books', slug='Books', image_link='to-do'),
-                    models.Category(name='Clothes', slug='clothes', image_link='to-do'),
-                    models.Category(name='Food', slug='food', image_link='to-do')]
+        items = [models.Item(name='Fiction', category_id=1),
+                 models.Item(name='Non-Fiction', category_id=1),
+                 models.Item(name='Wooly Jumpers', category_id=2),
+                 models.Item(name='Tinned Fruit', category_id=3),
+                 models.Item(name='UHT Milk', category_id=3),
+                 models.Item(name='Dried Rice', category_id=3),
+                 models.Item(name='Craft Materials', category_id=4),
+                 models.Item(name='Whiteboard Pens', category_id=4),]
 
-        items = [models.Item(name='Fiction', description='Any fiction books please', category_id=1),
-                models.Item(name='Children\'s tops', description='Summer tops, all ages needed', category_id=2),
-                models.Item(name='Fruit', description='Fresh fruit in high demand', category_id=3)]
-
-        items_requested = [models.ItemRequested(item_id=1, group_id=1), models.ItemRequested(item_id=2, group_id=2),
-                           models.ItemRequested(item_id=3, group_id=1)]
+        items_requested = [models.ItemRequested(item_id=1, group_id=1),
+                           models.ItemRequested(item_id=2, group_id=1),
+                           models.ItemRequested(item_id=3, group_id=1),
+                           models.ItemRequested(item_id=4, group_id=2),
+                           models.ItemRequested(item_id=5, group_id=2),
+                           models.ItemRequested(item_id=6, group_id=2),
+                           models.ItemRequested(item_id=7, group_id=3),
+                           models.ItemRequested(item_id=2, group_id=3),]
 
 
         db.session.add_all(groups)
@@ -75,7 +105,6 @@ def create_app(config):
         db.session.add_all(items)
         db.session.add_all(items_requested)
         db.session.commit()
-        db.session.close()
 
     return app
 

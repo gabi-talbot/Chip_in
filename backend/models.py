@@ -8,9 +8,12 @@ class Group(db.Model):
     address = db.Column(db.String(), nullable=False)
     city = db.Column(db.String(), nullable=False)
     county = db.Column(db.String(), nullable=False)
+    postcode = db.Column(db.String(), nullable=False)
     email = db.Column(db.String(), nullable=False)
-    image_link = db.Column(db.String(), nullable=True)
-    items_requested = db.relationship('ItemRequested', backref='group', lazy='joined',
+    items_requested = db.relationship('ItemRequested',
+                                      backref='group',
+                                      lazy='joined',
+                                      innerjoin=True,
                                       cascade='all, delete')
     def add(self):
         db.session.add(self)
@@ -26,6 +29,8 @@ class Group(db.Model):
         for item in self.items_requested:
             item_dict = {}
             item_dict['item_id'] = item.item_id
+            item_dict['item_name'] = item.item.name
+            item_dict['item_category'] = item.item.category.name
             item_dict['date_requested'] = item.date_requested
             items_requested.append(item_dict)
 
@@ -35,8 +40,8 @@ class Group(db.Model):
             'address': self.address,
             'city': self.city,
             'county': self.county,
+            'postcode': self.postcode,
             'email': self.email,
-            'image_link': self.image_link,
             'items_requested': items_requested
         }
 
@@ -48,15 +53,11 @@ class Category(db.Model):
     __tablename__ = 'category'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), unique=True, nullable=False)
-    slug = db.Column(db.String(), unique=True, nullable=False)
-    image_link = db.Column(db.String(), nullable=False)
     items = db.relationship('Item', backref='category', lazy='dynamic',
                             cascade='all, delete')
     def format(self):
         return {
             'name': self.name,
-            'slug': self.slug,
-            'image_link': self.image_link,
             'items': self.items
         }
     def __repr__(self):
@@ -67,14 +68,12 @@ class Item(db.Model):
     __tablename__ = 'item'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String(), nullable=True)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     groups_requesting = db.relationship('ItemRequested', backref=db.backref('item'), lazy='joined',)
 
     def format(self):
         return {
             'name': self.name,
-            'description': self.description,
             'category_id': self.category_id,
             'groups_requesting': self.groups_requesting,
         }
