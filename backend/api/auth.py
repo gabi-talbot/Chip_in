@@ -5,12 +5,8 @@ from urllib.request import urlopen
 import os
 from dotenv import load_dotenv
 from jose import jwt, exceptions
-from werkzeug.exceptions import abort
 
 load_dotenv()
-
-
-
 
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
 ALGORITHMS = [os.getenv("ALGORITHMS")]
@@ -90,19 +86,6 @@ def check_permissions(permission, payload):
     return True
 
 
-'''
-@COMPLETED implement verify_decode_jwt(token) method
-    @INPUTS
-        token: a json web token (string)
-
-    it should be an Auth0 token with key id (kid)
-    it should verify the token using Auth0 /.well-known/jwks.json
-    it should decode the payload from the token
-    it should validate the claims
-    return the decoded payload
-
-    !!NOTE urlopen has a common certificate error described here: https://stackoverflow.com/questions/50236117/scraping-ssl-certificate-verify-failed-error-for-http-en-wikipedia-org
-'''
 def verify_decode_jwt(token):
     """
     Checks token is valid
@@ -164,17 +147,7 @@ def verify_decode_jwt(token):
         'description': 'Unable to find the appropriate key.'
     }, 400)
 
-
-'''
-@COMPLETED implement @requires_auth(permission) decorator method
-    @INPUTS
-        permission: string permission (i.e. 'post:drink')
-
-    it should use the get_token_auth_header method to get the token
-    it should use the verify_decode_jwt method to decode the jwt
-    it should use the check_permissions method validate claims and check the requested permission
-    return the decorator which passes the decoded payload to the decorated method
-'''
+# Decorator for routes
 def requires_auth(permission=''):
     def requires_auth_decorator(f):
         @wraps(f)

@@ -176,28 +176,22 @@ def create_item(jwt):
     """
     try:
         body = request.get_json()
-        try:
-            new_group = Group(name=body.get('name'),
-                              description=body.get('description'),
-                              address=body.get('address'),
-                              city=body.get('city'),
-                              county=body.get('county'),
-                              postcode=body.get('postcode'),
-                              email=body.get('email'))
 
-            # add more validation for empty strings
-            # email validation?
-            if new_group.address == "":
-                raise ValueError("Empty String")
+        new_group = Group(name=body.get('name'),
+                          description=body.get('description'),
+                          address=body.get('address'),
+                          city=body.get('city'),
+                          county=body.get('county'),
+                          postcode=body.get('postcode'),
+                          email=body.get('email'))
 
-        except ValueError as e:
-            print(e)
-            raise UnprocessableEntity("Cannot create group with the request "
-                                      "data")
+        # add more validation for empty strings
+        # email validation needed
+        if new_group.address == "":
+            raise ValueError("Empty String")
 
         # add group and commit
         new_group.add()
-
 
         return jsonify(
             {
@@ -205,6 +199,10 @@ def create_item(jwt):
             }
         ), 201
 
+    except ValueError as e:
+        print(e)
+        raise UnprocessableEntity("Cannot create group with the request "
+                                  "data")
     except Exception as e:
         print(e)
         raise BadRequest("Request is not valid")
@@ -244,7 +242,7 @@ def update_items(jwt, id):
 
     except Exception as e:
         print(e)
-        raise BadRequest("Request is not valid")
+        raise BadRequest('Request is not valid')
 
 
 ################## ERROR HANDLING  ############################
