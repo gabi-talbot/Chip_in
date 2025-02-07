@@ -131,7 +131,7 @@ def delete_requested_item_by_id(jwt, id, item_id):
 
     :param jwt: Jwt must have delete:group_items permission.
     :param id: Group Id
-    :param item_id: Item requested Id to be deleted
+    :param item_id: Item Id to be deleted from the group's requested items
 
     :returns: 200 OK and deleted item_id if successful;
      404 if item id not
