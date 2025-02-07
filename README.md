@@ -97,8 +97,15 @@ python test_flaskr.py
 - Base URL: This app can only be run locally, hosted at the default `http://127.0.0.1:5000`, 
 which will be set as a proxy in the future frontend configuration.
 - Authentication: There are 2 roles - admin and group owner. admin role contains permissions for all
-endpoints, group owner cannot create or patch group details. The endpoints to return all groups
- and group by id are accessible without authentication. Authentication is handled by Auth0.
+endpoints, group owner cannot create or patch group details. 
+  1. Group Owner 
+    - Can add and delete new items needed by groups
+  2. Admin
+    - In addition to adding and deleting new items needed, admin roles can also 
+  create new groups and update group email addresses.
+
+The endpoints to return all groups and a single group by id are accessible without authentication. 
+Authentication is handled by Auth0 and permissions are identified via a bearer token.
 
 ##### Error Handling
 
@@ -325,7 +332,8 @@ supplied in the request body.
 ##### Example
 
 `curl -X POST http://127.0.0.1:5000/api/groups/1/items -d '{"item_id": 4}' 
--H "Content-Type: application/json" -H "Authorization: Bearer ${TOKEN}"`
+-H "Content-Type: application/json" -H "Authorization:
+er ${TOKEN}"`
 
 ```json
 {
